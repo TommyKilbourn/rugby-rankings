@@ -1,0 +1,17 @@
+# virtual env / caches
+.venv/
+__pycache__/
+*.pyc
+
+# generated artefacts (rebuilt by the pipeline / CI)
+site/
+outputs/
+logs/
+data/rugby_results_master.csv
+data/espn_cache/
+
+# local editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
