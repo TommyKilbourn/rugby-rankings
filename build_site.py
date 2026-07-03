@@ -27,8 +27,16 @@ HIST = os.path.join(HERE, "data", "rugby_results.csv")
 SITE = os.path.join(HERE, "site")
 os.makedirs(SITE, exist_ok=True)
 
-# Tuned "production" configuration (see run_baseline.py; stable interior optimum)
-PROD = re.EloConfig(k=43.0, hfa=110.0)
+# Tuned "production" configuration (see run_baseline.py; stable interior optimum).
+# Newcomers (non tier-1) are seeded below the tier-1 average so they aren't
+# over-rated on entry; see the tier-2 seed analysis.
+PROD = re.EloConfig(k=43.0, hfa=110.0,
+                    established_teams=frozenset(re.TIER1), new_team_base=1300.0)
+
+# Teams shown on the dashboard: the 10 tier-1 nations + the two best-connected
+# tier-2 sides (Fiji, Japan). Ratings are still computed on ALL internationals
+# so opponents are properly rated; we just display this subset.
+DISPLAY_TEAMS = set(re.TIER1) | {"Fiji", "Japan"}
 
 # Per-team display metadata: abbreviation + line/badge colour.
 TEAM_META = {
@@ -42,12 +50,17 @@ TEAM_META = {
     "Australia":    {"abbr": "AUS", "color": "#f59e0b"},
     "Wales":        {"abbr": "WAL", "color": "#9d174d"},
     "Italy":        {"abbr": "ITA", "color": "#0ea5e9"},
+    "Fiji":         {"abbr": "FIJ", "color": "#7c3aed"},
+    "Japan":        {"abbr": "JPN", "color": "#e11d48"},
 }
 
 
 def build_payload():
     data_path = MASTER if os.path.exists(MASTER) else HIST
-    df = re.load_results(data_path, tier1_only=True)
+    df = re.load_results(data_path, tier1_only=False)
+    # drop the composite British & Irish Lions (not a nation)
+    df = df[(df["home_team"] != "British and Irish Lions") &
+            (df["away_team"] != "British and Irish Lions")].reset_index(drop=True)
     pred, model, hist = re.run_elo(df, PROD, track_history=True)
 
     last_date = df["date"].max()
@@ -69,8 +82,9 @@ def build_payload():
             series[t] = [None if pd.isna(v) else round(float(v), 1)
                          for v in annual[t]]
 
-    # --- ranking rows with movement + form ---------------------------------
+    # --- ranking rows with movement + form (display subset only) -----------
     rank_df = re.current_ranking(model)
+    rank_df = rank_df[rank_df["team"].isin(DISPLAY_TEAMS)].reset_index(drop=True)
     ranking = []
     for i, row in rank_df.iterrows():
         team = row["team"]
@@ -86,9 +100,10 @@ def build_payload():
             "form": _recent_form(df, team, n=5),
         })
 
-    # --- recent results (tier-1) -------------------------------------------
+    # --- recent results (matches involving a displayed team) ---------------
+    disp = df[df["home_team"].isin(DISPLAY_TEAMS) | df["away_team"].isin(DISPLAY_TEAMS)]
     recent = []
-    for _, r in df.tail(14).iloc[::-1].iterrows():
+    for _, r in disp.tail(14).iloc[::-1].iterrows():
         recent.append({
             "date": r["date"].strftime("%Y-%m-%d"),
             "home": r["home_team"], "hs": int(r["home_score"]),
@@ -103,7 +118,7 @@ def build_payload():
 
     return {
         "generated": date.today().strftime("%Y-%m-%d"),
-        "data_through": last_date.strftime("%Y-%m-%d"),
+        "data_through": disp["date"].max().strftime("%Y-%m-%d"),
         "n_matches": int(len(df)),
         "config": {"k": PROD.k, "hfa": PROD.hfa},
         "model": model,
@@ -341,7 +356,7 @@ TEMPLATE = r"""<!doctype html>
       </tr></thead><tbody id="tbody"></tbody></table>
     </div>
     <div class="card">
-      <h2>Recent tier-1 results</h2>
+      <h2>Recent results</h2>
       <ul class="rec" id="recent"></ul>
     </div>
   </div>
@@ -358,13 +373,16 @@ TEMPLATE = r"""<!doctype html>
 
   <div class="card about" style="margin-top:18px">
     <h2>About &mdash; how it works</h2>
-    <p class="lead">A live Elo rating of the 10 tier-1 rugby nations, updated automatically after every Test match.</p>
+    <p class="lead">A live Elo rating of the 10 tier-1 rugby nations plus Fiji and Japan, updated automatically after every Test match.</p>
 
     <h3>What you're looking at</h3>
     <p>The table ranks the teams by rating, shows whether each is rising or sliding over the
     last year, and their last five results. The chart tracks how every nation's strength has
     risen and fallen over the decades, and the calculator at the top lets you pick any two
     teams and a venue to see the win, draw and loss chances plus a predicted margin.</p>
+    <p><b>Fiji and Japan</b> are included with their records back to 2015 (World Cups and
+    Tests). They've played far fewer matches than the long-established sides, so their ratings
+    carry a little more uncertainty &mdash; and their chart lines begin in 2015.</p>
 
     <h3>How the ranking works</h3>
     <p>Every team carries a points score. When two teams play, points move from the loser to
@@ -405,7 +423,7 @@ let range = 2000;
 
 // ---- header + footer ----
 document.getElementById('sub').textContent =
-  `Updated ${DATA.generated} · data through ${DATA.data_through} · ${DATA.n_matches.toLocaleString()} tier-1 tests since 1871`;
+  `Updated ${DATA.generated} · data through ${DATA.data_through} · ${DATA.n_matches.toLocaleString()} internationals analysed since 1871`;
 document.getElementById('foot').innerHTML =
   `Home-adjusted Elo (K=${DATA.config.k}, home advantage=${DATA.config.hfa} pts). ` +
   `Prequential (one-step-ahead) accuracy on 2000+ decisive matches: ` +

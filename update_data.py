@@ -29,6 +29,12 @@ COLS = ["date", "home_team", "away_team", "home_score", "away_score",
 TIER1 = {"Argentina", "Australia", "England", "France", "Ireland", "Italy",
          "New Zealand", "Scotland", "South Africa", "Wales"}
 
+# Pull ESPN back to 2015 so tier-2 sides (Fiji, Japan, ...) get real history.
+# The curated tier-1 base (1871-2023) stays authoritative for tier-1-v-tier-1;
+# from ESPN we take everything after the base cutoff, plus tier-2-involving
+# matches before it (World Cups back to 2015, regular Tests from 2015).
+ESPN_START_YEAR = 2015
+
 
 def _key(df):
     return df.apply(lambda r: (r["date"],
@@ -54,11 +60,15 @@ def main():
 
     # ---- ESPN extension --------------------------------------------------- #
     this_year = date.today().year
-    print(f"Fetching ESPN internationals {2023}-{this_year} ...")
-    esp = espn.fetch_internationals(2023, this_year)
-    esp = esp[esp["date"] > cutoff].copy()          # strictly after historical
+    print(f"Fetching ESPN internationals {ESPN_START_YEAR}-{this_year} ...")
+    esp = espn.fetch_internationals(ESPN_START_YEAR, this_year)
+    # keep everything after the base cutoff, plus tier-2-involving games before
+    # it (the curated tier-1-v-tier-1 history stays from the base file)
+    involves_t2 = (~esp["home_team"].isin(TIER1)) | (~esp["away_team"].isin(TIER1))
+    esp = esp[(esp["date"] > cutoff) | involves_t2].copy()
     esp["source"] = "espn"
-    print(f"ESPN matches after {cutoff}: {len(esp)}")
+    n_pre = int(((esp["date"] <= cutoff)).sum())
+    print(f"ESPN matches kept: {len(esp)}  ({n_pre} tier-2 games before {cutoff})")
 
     # ---- merge & dedupe --------------------------------------------------- #
     master = pd.concat([hist, esp[COLS + ['source']]], ignore_index=True)
@@ -80,13 +90,12 @@ def main():
     t1 = master[master.home_team.isin(TIER1) & master.away_team.isin(TIER1)]
     print(f"  tier-1 v tier-1: {len(t1)}")
 
-    # diagnostics: RWC 2023 neutral handling
+    # diagnostics: RWC neutral handling across tournaments
     rwc = esp[esp.world_cup]
     if len(rwc):
-        fr = rwc[(rwc.home_team == "France") | (rwc.away_team == "France")]
-        print(f"\n  RWC 2023: {len(rwc)} matches; France matches neutral flags: "
-              f"{sorted(fr.neutral.unique().tolist())} (expect [False]); "
-              f"non-France neutral share: {rwc[~((rwc.home_team=='France')|(rwc.away_team=='France'))].neutral.mean():.2f} (expect 1.0)")
+        yrs = sorted(rwc.date.str[:4].unique().tolist())
+        print(f"\n  RWC matches: {len(rwc)} across {yrs}; "
+              f"neutral share {rwc.neutral.mean():.2f} (hosts play at home)")
 
     print("\n  Latest 8 tier-1 internationals ingested:")
     show = t1[t1.source == "espn"].tail(8)

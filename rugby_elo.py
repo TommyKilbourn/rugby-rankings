@@ -91,6 +91,12 @@ class EloConfig:
     mov_cap: float = 2.2           # autocorrelation-correction constant
     regress: float = 0.0           # fraction pulled to mean at each new season
     world_cup_mult: float = 1.0    # extra weight on World Cup matches
+    # --- newcomer seeding (for extending beyond the established pool) ---
+    # Teams NOT in `established_teams` are seeded at `new_team_base` on their
+    # first appearance instead of `base` -- a lower prior reflecting that a side
+    # joining a mature pool is typically below its average, not at it.
+    established_teams: Optional[frozenset] = None
+    new_team_base: Optional[float] = None
 
     def describe(self) -> str:
         bits = [f"K={self.k:g}", f"HFA={self.hfa:g}"]
@@ -114,10 +120,23 @@ class EloModel:
         self.ratings: dict[str, float] = {}
         self.games_played: dict[str, int] = {}
 
+    # -- seed-on-first-use -------------------------------------------------- #
+    def _rating(self, team: str) -> float:
+        r = self.ratings.get(team)
+        if r is None:
+            if (self.cfg.new_team_base is not None
+                    and self.cfg.established_teams is not None
+                    and team not in self.cfg.established_teams):
+                r = self.cfg.new_team_base
+            else:
+                r = self.cfg.base
+            self.ratings[team] = r
+        return r
+
     # -- expectation -------------------------------------------------------- #
     def expected_home(self, home: str, away: str, neutral: bool) -> float:
-        rh = self.ratings.get(home, self.cfg.base)
-        ra = self.ratings.get(away, self.cfg.base)
+        rh = self._rating(home)
+        ra = self._rating(away)
         adj = 0.0 if neutral else self.cfg.hfa
         return 1.0 / (1.0 + 10.0 ** (-((rh + adj) - ra) / self.cfg.scale))
 
@@ -136,8 +155,8 @@ class EloModel:
     def update_match(self, home: str, away: str, s_home: float,
                      margin: float, neutral: bool, world_cup: bool) -> float:
         """Predict (return E_home), then update both ratings in place."""
-        rh = self.ratings.get(home, self.cfg.base)
-        ra = self.ratings.get(away, self.cfg.base)
+        rh = self._rating(home)
+        ra = self._rating(away)
         e_home = self.expected_home(home, away, neutral)
 
         k = self.cfg.k

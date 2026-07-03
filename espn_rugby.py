@@ -47,6 +47,8 @@ WORLD_CUP_LEAGUE = "164205"
 
 # Rugby World Cup host nations (extend as new hosts are confirmed).
 RWC_HOSTS = {
+    2015: {"England"},
+    2019: {"Japan"},
     2023: {"France"},
     2027: {"Australia"},
     2031: {"United States"},
