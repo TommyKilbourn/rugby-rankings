@@ -3,7 +3,7 @@
 A self-updating Elo rating system for tier-1 men's international rugby union,
 with an interactive dashboard and a win-probability calculator.
 
-**Live site:** _(GitHub Pages URL — added once Pages is enabled)_
+**Live site:** https://tommykilbourn.github.io/rugby-rankings/
 
 ## What it does
 
