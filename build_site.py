@@ -264,6 +264,14 @@ TEMPLATE = r"""<!doctype html>
   .probleg{display:flex;justify-content:space-between;margin-top:9px;font-size:13px;color:var(--muted)}
   .probleg b{color:var(--ink)}
   .pred{margin-top:12px;font-size:15px;font-weight:700;text-align:center;color:var(--accent)}
+  .about .lead{font-size:15px;color:var(--ink);margin:0 0 4px}
+  .about h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);
+    margin:18px 0 6px}
+  .about p,.about li{font-size:14px;line-height:1.65;color:#334155;max-width:74ch}
+  .about ul{margin:6px 0 0;padding-left:20px}
+  .about li{margin-bottom:7px}
+  .about li b{color:var(--ink)}
+  .about .note{font-size:12.5px;color:var(--muted);font-style:italic;margin-top:16px}
   .controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
   .rangebtn{border:1px solid var(--line);background:#fff;border-radius:8px;
             padding:4px 10px;font-size:12px;cursor:pointer;color:var(--muted)}
@@ -346,6 +354,43 @@ TEMPLATE = r"""<!doctype html>
       <div class="tip" id="tip"></div>
     </div>
     <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="card about" style="margin-top:18px">
+    <h2>About &mdash; how it works</h2>
+    <p class="lead">A live Elo rating of the 10 tier-1 rugby nations, updated automatically after every Test match.</p>
+
+    <h3>What you're looking at</h3>
+    <p>The table ranks the teams by rating, shows whether each is rising or sliding over the
+    last year, and their last five results. The chart tracks how every nation's strength has
+    risen and fallen over the decades, and the calculator at the top lets you pick any two
+    teams and a venue to see the win, draw and loss chances plus a predicted margin.</p>
+
+    <h3>How the ranking works</h3>
+    <p>Every team carries a points score. When two teams play, points move from the loser to
+    the winner &mdash; a bit like a bet settling. How many move depends on the upset: beat a
+    side you were expected to beat and you gain a little; topple a much stronger team and you
+    gain a lot (and they lose a lot). Playing at home earns a boost, because home advantage is
+    worth real points in rugby. The table updates after every match, so it reflects current
+    form rather than reputation. It's the same idea used to rank chess players and in the FIFA
+    world rankings.</p>
+
+    <h3>How it differs from the official World Rugby ranking</h3>
+    <ul>
+      <li><b>Tuned to be accurate.</b> We tested it against thousands of past matches and set
+      it up to predict results as well as possible &mdash; it calls about <b>3 in 4</b> games
+      correctly. World Rugby's settings are fixed by committee, not optimised.</li>
+      <li><b>No artificial caps.</b> World Rugby limits how much a single result can move the
+      table, which makes it slow to react. Ours lets a genuine shock count for what it's worth,
+      so slumps and surges show up clearly and quickly.</li>
+      <li><b>The full story.</b> It uses every international back to 1871, not just a rolling
+      recent snapshot.</li>
+      <li><b>Open and interactive.</b> The code and data are public, and you can test any
+      matchup yourself instead of just being handed a number.</li>
+    </ul>
+
+    <p class="note">A passion project, not an official ranking &mdash; but the maths is honest,
+    and every bit of it is open to check.</p>
   </div>
 </div>
 
